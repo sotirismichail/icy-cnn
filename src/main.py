@@ -1,4 +1,6 @@
 # main.py
+import argparse
+
 from config.settings import IMAGE_PATH
 from config.settings import PADDING_SIZE
 from display import display_images
@@ -50,4 +52,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Process some images.")
+    parser.add_argument("-i", "--image", required=True, help="Path to the input image")
+    parser.add_argument(
+        "-p", "--padding", type=int, default=0, help="Padding size as an integer"
+    )
+
+    args = parser.parse_args()
+
+    main(args.image, (args.padding, args.padding))
