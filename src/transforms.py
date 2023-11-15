@@ -1,48 +1,62 @@
 # transforms.py
 import numpy as np
 
-from .bilinear import interp_bilinear
-from .cordic import cordic_vector_mode
+from src.bilinear import interp_bilinear
+from src.cordic import cordic_vector_mode
 
 
 def logpolar(
-    image: np.ndarray, angles: int = None, mode: str = "M", cval: int = 0
+    image: np.ndarray, output_dim: tuple[int, int], mode: str = "M", cval: int = 0
 ) -> np.ndarray:
-    """Applies the log-polar transform to an image.
+    """
+    Applies the log-polar transform to an image with the specified output dimensions.
 
     Args:
         image (np.ndarray): The input image to transform.
-        angles (int, optional): Number of samples in the radial direction. Defaults to
-            the larger of the image dimensions.
-        mode (str, optional): How values outside the borders are handled. 'C' for
-            constant, 'M' for mirror, 'W' for wrap. Defaults to 'M'.
-        cval (int, optional): Constant to fill the outside area with if mode is 'C'.
-            Defaults to 0.
+        output_dim (tuple[int, int]): The dimensions (height, width) of the output image
+        mode (str): How values outside the borders are handled. 'C' for constant,
+                    'M' for mirror, 'W' for wrap.
+        cval (int): Constant to fill the outside area with if mode is 'C'.
 
     Returns:
         np.ndarray: The log-polar transformed image.
     """
 
-    if angles is None:
-        angles = max(image.shape[:2])
+    angles = output_dim[1]  # Width of the output image corresponds to number of angles
+    radius = output_dim[0]  # Height of the output image corresponds to number of radii
 
+    # Center of the log-polar coordinates should be the center of the image
     centre = (np.array(image.shape[:2]) - 1) / 2.0
-    d = np.hypot(*(image.shape[:2] - centre))
-    log_base = np.log(d) / angles
 
-    angles_arr = -np.linspace(0, 2 * np.pi, 2 * angles + 1)[:-1]
-    theta = np.empty((len(angles_arr), angles), dtype=image.dtype)
-    theta.T[:] = angles_arr
-    log_e = np.arange(angles, dtype=image.dtype)
-    r = np.exp(log_e * log_base)
+    # Calculate the maximum radius for the log-polar space based on the input image
+    # dimensions
+    max_radius = np.hypot(*(centre))
 
+    # Calculate log_base using the desired number of radii and the maximum radius
+    # This is the change in radius per pixel in the log-polar space
+    log_base = np.log(max_radius) / (
+        radius - 1
+    )  # Corrected to use the desired number of radii
+
+    # Calculate the linear steps in the logarithmic space for radii using log_base
+    log_rad = log_base * np.arange(radius)  # This is where log_base is used
+
+    angles_arr = np.linspace(0, 2 * np.pi, angles, endpoint=False)
+    # Use broadcasting to create a 2D array for theta and log radius
+    theta, log_r = np.meshgrid(angles_arr, log_rad)
+
+    # Convert log radius back to linear radius
+    r = np.exp(log_r)
+
+    # Convert polar coordinates to Cartesian coordinates
     coords_r = r * np.sin(theta) + centre[0]
     coords_c = r * np.cos(theta) + centre[1]
 
-    channels = image.shape[2]
-    output = np.empty(coords_r.shape + (channels,), dtype=image.dtype)
+    # Initialize output image with the specified output dimensions
+    output = np.zeros((radius, angles, image.shape[2]), dtype=image.dtype)
 
-    for channel in range(channels):
+    # Perform bilinear interpolation
+    for channel in range(image.shape[2]):
         output[..., channel] = interp_bilinear(
             image[..., channel], coords_r, coords_c, mode=mode, cval=cval
         )
@@ -50,29 +64,59 @@ def logpolar(
     return output.squeeze()
 
 
-def log_cordic_transform(image: np.ndarray) -> np.ndarray:
-    """Applies the CORDIC-based log-polar transform to an image.
+def log_cordic_transform(
+    image: np.ndarray, output_dim: tuple[int, int], mode: str = "M", cval: int = 0
+) -> np.ndarray:
+    """
+    Applies the log-polar transform to an image with the specified output dimensions using the CORDIC algorithm.
 
     Args:
         image (np.ndarray): The input image to transform.
+        output_dim (tuple[int, int]): The dimensions (height, width) of the output image.
+        mode (str): The mode of interpolation ('C' for constant, 'W' for warp, 'M' for mirror).
+        cval (int): The constant value to use if mode is 'C'.
 
     Returns:
-        np.ndarray: The CORDIC-log-polar transformed image.
+        np.ndarray: The log-polar transformed image.
     """
 
-    h, w = image.shape[:2]
-    cx, cy = w // 2, h // 2
-    transformed_image = np.zeros_like(image)
-    max_radius = np.sqrt(cx**2 + cy**2)
+    angles = output_dim[1]
+    radius = output_dim[0]
+    centre = (np.array(image.shape[:2]) - 1) / 2.0
+    max_radius = np.hypot(*(centre))
+    log_base = np.log(max_radius) / (radius - 1)
 
-    for i in range(h):
-        for j in range(w):
-            log_r = np.exp(j / w * np.log(max_radius))
-            theta = (i / h) * 2 * np.pi
-            x, _ = cordic_vector_mode(log_r, theta)
-            y = cy - log_r * np.sin(theta)
+    # Initialize output image
+    output = np.zeros((radius, angles, image.shape[2]), dtype=image.dtype)
 
-            if 0 <= x < w and 0 <= y < h:
-                transformed_image[i, j] = image[int(y), int(x)]
+    tf_coords_r = np.zeros((radius, angles))
+    tf_coords_c = np.zeros((radius, angles))
 
-    return transformed_image
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
+            # Calculate coordinates relative to the center
+            rel_x, rel_y = x - centre[1], y - centre[0]
+
+            # Apply CORDIC to get polar coordinates
+            cordic_radius, cordic_angle = cordic_vector_mode(rel_x, rel_y)
+
+            # Convert radius to log scale and map to output dimensions
+            log_r = np.log(cordic_radius) / log_base if cordic_radius > 0 else 0
+            polar_x, polar_y = int(cordic_angle * angles / (2 * np.pi)), int(
+                log_r * radius / np.log(max_radius)
+            )
+
+            if 0 <= polar_x < angles and 0 <= polar_y < radius:
+                tf_coords_r[polar_y, polar_x] = y
+                tf_coords_c[polar_y, polar_x] = x
+
+    # Initialize output image
+    output = np.zeros((radius, angles, image.shape[2]), dtype=image.dtype)
+
+    # Apply bilinear interpolation for each channel
+    for channel in range(image.shape[2]):
+        output[..., channel] = interp_bilinear(
+            image[..., channel], tf_coords_r, tf_coords_c, mode=mode, cval=cval
+        )
+
+    return output.squeeze()

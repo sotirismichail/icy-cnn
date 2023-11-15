@@ -27,16 +27,40 @@ def pad(
         ValueError: If an unsupported padding mode is provided.
     """
 
-    n, m = matrix.shape
-    r, c = padding
+    if len(matrix.shape) == 3:
+        # Handle 3D array (RGB image)
+        n, m, channels = matrix.shape
+        matrix_padded = np.zeros(
+            (n + padding[0] * 2, m + padding[1] * 2, channels), dtype=utype
+        )
+        matrix_padded[
+            padding[0] : n + padding[0], padding[1] : m + padding[1], :
+        ] = matrix
 
-    matrix_padded = np.zeros((n + r * 2, m + c * 2), dtype=utype)
-    matrix_padded[r : n + r, c : m + c] = matrix
+        if mode == "cylindrical":
+            matrix_padded[: padding[0], padding[1] : m + padding[1], :] = matrix[
+                -padding[0] :, :, :
+            ]
+            matrix_padded[n + padding[0] :, padding[1] : m + padding[1], :] = matrix[
+                : padding[0], :, :
+            ]
+    elif len(matrix.shape) == 2:
+        # Handle 2D array (grayscale image)
+        n, m = matrix.shape
+        matrix_padded = np.zeros((n + padding[0] * 2, m + padding[1] * 2), dtype=utype)
+        matrix_padded[padding[0] : n + padding[0], padding[1] : m + padding[1]] = matrix
 
-    if mode == "cylindrical":
-        matrix_padded[:r, c : m + c] = matrix[-r:, :]
-        matrix_padded[n + r :, c : m + c] = matrix[:r, :]
-    elif mode != "zeros":
+        if mode == "cylindrical":
+            matrix_padded[: padding[0], padding[1] : m + padding[1]] = matrix[
+                -padding[0] :, :
+            ]
+            matrix_padded[n + padding[0] :, padding[1] : m + padding[1]] = matrix[
+                : padding[0], :
+            ]
+    else:
+        raise ValueError(f"Unsupported matrix shape: {matrix.shape}")
+
+    if mode not in ["zeros", "cylindrical"]:
         # Raise an error for unsupported padding modes.
         raise ValueError(f"Unsupported padding mode: {mode}")
 

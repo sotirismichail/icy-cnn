@@ -25,21 +25,14 @@ def _coord_map(
     coord = np.floor(coord).astype(int)
     dim = np.floor(dim).astype(int)
     if mode == "M":
-        if coord < 0:
-            coord = np.fmod(-coord, dim)
-        elif coord == dim:
-            coord = dim - 1
-        else:
-            coord = dim - np.fmod(coord, dim)
+        if coord < 0 or coord >= dim:
+            coord = -coord % (2 * dim)
+            if coord >= dim:
+                coord = (2 * dim - 1) - coord
     elif mode == "W":
-        if coord < 0:
-            coord = dim - np.fmod(-coord, dim)
-        elif coord == dim:
-            coord = 0
-        else:
-            coord = np.fmod(coord, dim)
+        coord = coord % dim
 
-    return coord
+    return min(max(coord, 0), dim - 1)  # Ensure coord is within [0, dim - 1]
 
 
 def interp_bilinear(

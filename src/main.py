@@ -1,8 +1,6 @@
 # main.py
 import argparse
 
-from config.settings import IMAGE_PATH
-from config.settings import PADDING_SIZE
 from display import display_images
 from image_loader import load_image
 from padding import pad
@@ -10,43 +8,49 @@ from transforms import log_cordic_transform
 from transforms import logpolar
 
 
-def main():
+def main(image_path, padding_size):
     # Load the original image
-    original_image = load_image(IMAGE_PATH)
+    original_image = load_image(image_path)
 
-    # Apply the log-polar transform
-    log_polar_image, _, _ = logpolar(original_image)
+    # Get dimensions for the log-polar transformation of the original image
+    original_dimensions = original_image.shape[:2]
 
-    # Apply the CORDIC-based log-polar transform
-    cordic_log_polar_image = log_cordic_transform(original_image)
+    # Apply the log-polar transform to the original image
+    log_polar_image = logpolar(original_image, output_dim=original_dimensions)
+
+    # Apply the CORDIC-based log-polar transform to the original image
+    log_cordic_image = log_cordic_transform(
+        original_image, output_dim=original_dimensions
+    )
 
     # Apply cylindrical padding to the original image
-    padded_original = pad(original_image, PADDING_SIZE, mode="cylindrical")
+    padded_original = pad(original_image, padding_size, mode="cylindrical")
 
-    # Apply cylindrical padding to the log-polar image
-    padded_log_polar = pad(log_polar_image, PADDING_SIZE, mode="cylindrical")
+    # Get dimensions for the log-polar transformation of the padded image
+    padded_dimensions = padded_original.shape[:2]
 
-    # Apply cylindrical padding to the CORDIC-log-polar image
-    padded_cordic_log_polar = pad(
-        cordic_log_polar_image, PADDING_SIZE, mode="cylindrical"
+    # Apply the log-polar transform to the padded image
+    padded_log_polar = logpolar(padded_original, output_dim=padded_dimensions)
+    padded_log_cordic = log_cordic_transform(
+        padded_original, output_dim=padded_dimensions
     )
 
     # Display all the images
     images = [
         original_image,
         log_polar_image,
-        cordic_log_polar_image,
+        log_cordic_image,
         padded_original,
         padded_log_polar,
-        padded_cordic_log_polar,
+        padded_log_cordic,
     ]
     titles = [
-        "Original Image",
-        "Log-Polar Transform",
-        "CORDIC-Log-Polar Transform",
-        "Padded Original Image",
-        "Padded Log-Polar Transform",
-        "Padded CORDIC-Log-Polar Transform",
+        "Original image",
+        "Log-polar Transform",
+        "Log-CORDIC Transform",
+        "Cylindrical padding on original image",
+        "Log-polar Transform after padding",
+        "Log-CORDIC Transform after padding",
     ]
     display_images(images, titles)
 

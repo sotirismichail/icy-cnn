@@ -13,7 +13,7 @@ utype = _np.uint8
 N_ITER = 16
 
 # Define the path to the image if you want to have a default image to load.
-IMAGE_PATH = "path_to_default_image.jpg"  # Replace with a valid image path
+IMAGE_PATH = "notebooks/doge.png"  # Replace with a valid image path
 PADDING_SIZE = (10, 10)
 
 # Add any other global constants or configuration settings that might be needed.
