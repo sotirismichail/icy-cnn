@@ -45,23 +45,13 @@ Install the required dependencies:
 pip install -r requirements.txt
 ```
 
-## Configuration
-
-Before running the project, make sure to set up the `config/settings.py` file with the correct `IMAGE_PATH` and `PADDING_SIZE`:
-
-```python
-# config/settings.py
-
-IMAGE_PATH = 'path/to/your/image.jpg'  # Replace with the actual path to your image file
-PADDING_SIZE = (20, 20)  # Adjust the padding size as needed
-```
-
 ## Running the Project
 
-To run the project, execute the `main.py` script from the `src` directory:
+To run the project, execute the `main.py` script from the `src` directory. For example,
+transforming the "lion.jpeg" image with a 125 pixel padding, can be done as follows:
 
 ```bash
-python src/main.py
+python src/main.py -i notebooks/lion.jpeg -p 125
 ```
 
 This will load the image specified in the `IMAGE_PATH`, apply the transformations, padding, and display the results.

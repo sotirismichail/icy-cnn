@@ -10,7 +10,7 @@ itype = _np.int32
 utype = _np.uint8
 
 # Define the number of iterations for the CORDIC algorithm.
-N_ITER = 16
+N_ITER = 32
 
 # Define the path to the image if you want to have a default image to load.
 IMAGE_PATH = "notebooks/doge.png"  # Replace with a valid image path
