@@ -53,6 +53,10 @@ def logpolar(
     coords_r = r * np.sin(theta) + centre[0]
     coords_c = r * np.cos(theta) + centre[1]
 
+    if len(image.shape) == 2:
+        # If grayscale, reshape it to include a third dimension
+        image = image[:, :, np.newaxis]
+
     # Initialize output image with the specified output dimensions
     output = np.zeros((radius, angles, image.shape[2]), dtype=image.dtype)
 
@@ -101,10 +105,13 @@ def log_cordic_transform(
         coords_r[:, i] = r[:, i] * sin_val + centre[0]
         coords_c[:, i] = r[:, i] * cos_val + centre[1]
 
+    if len(image.shape) == 2:
+        # If grayscale, reshape it to include a third dimension
+        image = image[:, :, np.newaxis]
+
     # Initialize output image with the specified output dimensions
     output = np.zeros((radius, angles, image.shape[2]), dtype=image.dtype)
 
-    # Perform bilinear interpolation (assuming this function is defined)
     for channel in range(image.shape[2]):
         output[..., channel] = interp_bilinear(
             image[..., channel], coords_r, coords_c, mode=mode, cval=cval
